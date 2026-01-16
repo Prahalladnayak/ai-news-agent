@@ -1,0 +1,7 @@
+Django>=5.0
+langchain
+langchain-community
+duckduckgo-search
+openai
+gunicorn
+whitenoise

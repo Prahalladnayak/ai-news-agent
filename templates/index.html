@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Real-Time News Agent</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --primary: #00f2ff;
+            --secondary: #bd00ff;
+            --bg-dark: #050510;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-dim: #a0a0b0;
+            --danger: #ff2a2a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary) transparent;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        /* Ambient Background */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            height: 90vh;
+            max-height: 800px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* News Ticker Bar - Slower animation */
+        .news-ticker-bar {
+            background: rgba(0, 242, 255, 0.05);
+            border-bottom: 1px solid var(--glass-border);
+            height: 30px;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ticker-content {
+            position: absolute;
+            white-space: nowrap;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--primary);
+            animation: ticker 30s linear infinite;
+            padding-left: 100%;
+        }
+
+        @keyframes ticker {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+
+        /* Header - Responsive */
+        header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(90deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%);
+            min-height: 70px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 6px;
+            display: grid;
+            place-items: center;
+            font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        h1 {
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            background: linear-gradient(to right, #fff, #a0a0ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+        }
+
+        .status-pill {
+            padding: 5px 12px;
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: inset 0 0 10px rgba(0, 242, 255, 0.05);
+            flex-shrink: 0;
+        }
+
+        .status-dot {
+            width: 5px;
+            height: 5px;
+            background: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary);
+            animation: pulse 2s infinite;
+            flex-shrink: 0;
+        }
+
+        /* Chat Area - Responsive */
+        .chat-area {
+            flex: 1;
+            padding: 15px 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 12px 18px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            position: relative;
+            animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, rgba(0, 242, 255, 0.1), rgba(189, 0, 255, 0.1));
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-bottom-right-radius: 4px;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .msg-ai {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+            backdrop-filter: blur(10px);
+        }
+
+        .msg-ai strong {
+            color: var(--primary);
+        }
+
+        .msg-tool {
+            align-self: flex-start;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--primary);
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            max-width: 90%;
+        }
+
+        .msg-header {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .report-header {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 10px;
+            display: block;
+            letter-spacing: 0.5px;
+        }
+
+        .section-header {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 12px 0 8px 0;
+            display: block;
+        }
+
+        .info-line {
+            margin: 4px 0;
+            display: block;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .news-item {
+            margin: 6px 0;
+            padding-left: 18px;
+            position: relative;
+            color: var(--text-main);
+            font-size: 0.9rem;
+        }
+
+        .news-item::before {
+            content: "•";
+            color: var(--primary);
+            font-weight: bold;
+            position: absolute;
+            left: 6px;
+        }
+
+        .numbered-item {
+            margin: 8px 0;
+            padding-left: 22px;
+            position: relative;
+            color: var(--text-main);
+            font-size: 0.9rem;
+        }
+
+        .numbered-item::before {
+            content: attr(data-number) ".";
+            color: var(--primary);
+            font-weight: bold;
+            position: absolute;
+            left: 6px;
+        }
+
+        /* Input Area - Mobile Responsive */
+        .input-area {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            min-height: 80px;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s;
+            min-width: 0;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(0.9rem, 3vw, 1rem);
+            outline: none;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            padding: 0 20px;
+            height: 50px;
+            min-width: 80px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-transform: uppercase;
+            font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(189, 0, 255, 0.4);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Loading Indicator */
+        .loading-indicator {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid var(--glass-border);
+            display: none;
+            align-items: center;
+            gap: 12px;
+            min-height: 60px;
+        }
+
+        /* Loaders & Animations */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                box-shadow: 0 0 8px var(--primary);
+            }
+            50% {
+                opacity: 0.5;
+                box-shadow: 0 0 0px var(--primary);
+            }
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 8px var(--primary);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .loader-3d {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            padding: 10px 0;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            background-color: var(--text-dim);
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out both;
+            margin: 0 1px;
+        }
+
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 242, 255, 0.3);
+        }
+
+        .timestamp {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            margin-top: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+            
+            .container {
+                height: 95vh;
+                max-height: 95vh;
+                border-radius: 15px;
+            }
+            
+            header {
+                padding: 12px 15px;
+                min-height: 60px;
+            }
+            
+            .chat-area {
+                padding: 12px 15px;
+                gap: 12px;
+            }
+            
+            .message {
+                max-width: 90%;
+                padding: 10px 15px;
+                font-size: 0.85rem;
+            }
+            
+            .input-area {
+                padding: 12px 15px;
+                gap: 10px;
+                min-height: 70px;
+            }
+            
+            input {
+                padding: 12px 14px;
+            }
+            
+            button {
+                height: 46px;
+                min-width: 70px;
+                padding: 0 16px;
+            }
+            
+            .loading-indicator {
+                padding: 8px 15px;
+                min-height: 55px;
+            }
+            
+            .news-ticker-bar {
+                height: 25px;
+                min-height: 25px;
+            }
+            
+            .ticker-content {
+                font-size: 0.65rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header {
+                flex-direction: column;
+                gap: 8px;
+                align-items: flex-start;
+            }
+            
+            .status-pill {
+                align-self: flex-start;
+            }
+            
+            .input-area {
+                flex-direction: column;
+                gap: 10px;
+                padding: 10px;
+            }
+            
+            .input-wrapper {
+                width: 100%;
+            }
+            
+            button {
+                width: 100%;
+                height: 44px;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .news-ticker-bar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="container" id="app">
+        <header>
+            <div class="brand">
+                <div class="logo-icon">AI</div>
+                <div>
+                    <h1>REAL-TIME NEWS AGENT</h1>
+                    <div style="font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.5px;">INTELLIGENT WEB SEARCH</div>
+                </div>
+            </div>
+            <div class="status-pill">
+                <div class="status-dot"></div>
+                ACTIVE
+            </div>
+        </header>
+
+        <!-- News Ticker - Slower Animation -->
+        <div class="news-ticker-bar">
+            <div class="ticker-content">
+                LIVE: AI AGENT READY • DUCKDUCKGO SEARCH ACTIVE • REAL-TIME DATA STREAMS SYNCED • NEWS MONITORING: ACTIVE • RESPONSE TIME: OPTIMAL • SYSTEM: STABLE
+            </div>
+        </div>
+
+        <div class="chat-area" id="chatContainer">
+            <!-- Intro Message -->
+            <div class="message msg-ai">
+                <div class="msg-header">SYSTEM INITIALIZED</div>
+                Hello! I'm your AI News Agent. I can search for real-time news and information. 
+                Ask me about current events, and I'll decide if real-time search is needed!
+                
+                <div class="timestamp">System ready at: <span id="currentTime"></span></div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <input type="text" id="userInput" placeholder="Ask about current news or any topic..." autocomplete="off">
+            </div>
+            <button id="sendButton">
+                <span>Send</span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading-indicator" id="loadingIndicator">
+            <div class="loader-3d"></div>
+            <span style="color: var(--primary); font-size: 0.85rem;">Searching DuckDuckGo for real-time information...</span>
+        </div>
+    </div>
+
+    <script>
+        // Set current time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Background Animation (FROM REFERENCE CODE)
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Particle System - ORIGINAL from reference
+        const particles = [];
+        const particleCount = 60; // Increased back to original
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.5; // Original speed
+                this.vy = (Math.random() - 0.5) * 0.5; // Original speed
+                this.size = Math.random() * 2 + 1; // Original size
+                this.color = Math.random() > 0.5 ? 'rgba(0, 242, 255, ' : 'rgba(189, 0, 255, ';
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color + '0.4)'; // Original opacity
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < particleCount; i++) particles.push(new Particle());
+
+        function animateBg() {
+            ctx.fillStyle = 'rgba(5, 5, 16, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+                // Connect particles - ORIGINAL from reference
+                particles.forEach(p2 => {
+                    const dx = p.x - p2.x;
+                    const dy = p.y - p2.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 100) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                });
+            });
+            requestAnimationFrame(animateBg);
+        }
+        animateBg();
+
+        // Chat Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatContainer = document.getElementById('chatContainer');
+            const userInput = document.getElementById('userInput');
+            const sendButton = document.getElementById('sendButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            function formatAIResponse(text) {
+                // First, escape HTML to prevent injection
+                text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                
+                // Replace bold markers
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                // Replace line breaks with <br>
+                text = text.replace(/\n/g, '<br>');
+                
+                // Replace separators
+                text = text.replace(/════════════════════════════════════════/g, 
+                    '<hr style="border:none;border-top:2px solid var(--primary);margin:12px 0;">');
+                text = text.replace(/────────────────────────────────────────/g, 
+                    '<hr style="border:none;border-top:1px solid var(--glass-border);margin:8px 0;">');
+                
+                // Format headers
+                text = text.replace(/📡 AI NEWS AGENT REPORT/g, 
+                    '<span class="report-header">$&</span>');
+                
+                text = text.replace(/📰 LATEST UPDATES:/g, 
+                    '<span class="section-header">$&</span>');
+                
+                text = text.replace(/📋 SUMMARY:/g, 
+                    '<span class="section-header">$&</span>');
+                
+                text = text.replace(/📊 Report Info:/g, 
+                    '<span class="section-header">$&</span>');
+                
+                // Format numbered items (1., 2., etc.)
+                text = text.replace(/(\d+)\. (.*?)(<br>|$)/g, function(match, num, content) {
+                    return '<div class="numbered-item" data-number="' + num + '">' + content + '</div>';
+                });
+                
+                // Format bullet points
+                text = text.replace(/• (.*?)(<br>|$)/g, 
+                    '<div class="news-item">$1</div>');
+                
+                // Format query and time lines
+                text = text.replace(/🔎 Query: (.*?)(<br>|$)/g, 
+                    '<div class="info-line"><strong>🔎 Query:</strong> $1</div>');
+                
+                text = text.replace(/🕒 Time: (.*?)(<br>|$)/g, 
+                    '<div class="info-line"><strong>🕒 Time:</strong> $1</div>');
+                
+                text = text.replace(/Search Time: (.*?)(<br>|$)/g, 
+                    '<div class="info-line"><strong>🕒 Search Time:</strong> $1</div>');
+                
+                return text;
+            }
+            
+            function addMessage(message, isUser = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'msg-user' : 'msg-ai'}`;
+                
+                if (isUser) {
+                    messageDiv.textContent = message;
+                    // Add user header
+                    const header = document.createElement('div');
+                    header.className = 'msg-header';
+                    header.textContent = 'USER QUERY';
+                    messageDiv.insertBefore(header, messageDiv.firstChild);
+                } else {
+                    messageDiv.innerHTML = formatAIResponse(message);
+                }
+                
+                // Add timestamp
+                const timestamp = document.createElement('div');
+                timestamp.className = 'timestamp';
+                const now = new Date();
+                timestamp.textContent = now.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+                messageDiv.appendChild(timestamp);
+                
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            function showTypingIndicator() {
+                loadingIndicator.style.display = 'flex';
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            function hideTypingIndicator() {
+                loadingIndicator.style.display = 'none';
+            }
+            
+            async function sendMessage() {
+                const query = userInput.value.trim();
+                if (!query) return;
+                
+                // Add user message
+                addMessage(query, true);
+                userInput.value = '';
+                
+                // Show typing indicator
+                showTypingIndicator();
+                
+                try {
+                    // Send to backend
+                    const formData = new FormData();
+                    formData.append('query', query);
+                    
+                    const response = await fetch('/api/chat/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Hide typing indicator
+                    hideTypingIndicator();
+                    
+                    // Add AI response
+                    if (data.response) {
+                        addMessage(data.response);
+                    } else {
+                        addMessage("❌ Search failed. Please try again.");
+                    }
+                } catch (error) {
+                    hideTypingIndicator();
+                    addMessage("⚠️ Connection error. Please check your network.");
+                    console.error('Error:', error);
+                }
+            }
+            
+            // Event listeners
+            sendButton.addEventListener('click', sendMessage);
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // Focus input on load
+            userInput.focus();
+        });
+    </script>
+</body>
+</html>
