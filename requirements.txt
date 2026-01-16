@@ -1,7 +1,7 @@
 Django>=5.0
+gunicorn
+whitenoise
 langchain
 langchain-community
 duckduckgo-search
 openai
-gunicorn
-whitenoise

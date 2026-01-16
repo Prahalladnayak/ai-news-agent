@@ -1,1 +1,1 @@
-web: gunicorn wsgi:application --bind 0.0.0.0:$PORT
+web: gunicorn newsagent.wsgi:application --bind 0.0.0.0:$PORT
