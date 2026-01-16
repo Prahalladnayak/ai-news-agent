@@ -12,5 +12,7 @@ services:
       - key: DEBUG
         value: "False"
       - key: OPENAI_API_KEY
-        sync: false  # You'll add this in Render dashboard
+        sync: false
+      - key: PYTHONPATH
+        value: "/opt/render/project/src"
     autoDeploy: true
